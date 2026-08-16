@@ -2,6 +2,8 @@ import os
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, text
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
@@ -30,6 +32,14 @@ class User(Base):
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     db = SessionLocal()
@@ -76,9 +86,10 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
 
+# RUTA MODIFICATĂ: Acum livrează interfața HTML direct în browser
 @app.get("/")
 def read_root():
-    return {"status": "ok", "mesaj": "Backend funcțional"}
+    return FileResponse("frontend/index.html")
 
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
@@ -103,10 +114,8 @@ def register(user_req: RegisterRequest, db: Session = Depends(get_db)):
     
     return {"mesaj": "Utilizator creat cu succes", "id": new_user.id, "email": new_user.email}
 
-# AICI ESTE MODIFICAREA: Folosim OAuth2PasswordRequestForm
 @app.post("/auth/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Swagger trimite email-ul in campul 'username' implicit
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email sau parola gresita")
