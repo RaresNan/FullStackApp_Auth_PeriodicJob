@@ -9,17 +9,14 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 
-# --- CONFIGURĂRI INIȚIALE ---
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 SECRET_KEY = os.getenv("SECRET_KEY", "cheie_super_secreta_pentru_jwt_local")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-# Această linie activează citirea header-ului "Authorization: Bearer ..." și butonul verde din Swagger
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# --- BAZA DE DATE ---
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -41,7 +38,6 @@ def get_db():
     finally:
         db.close()
 
-# --- SECURITATE ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password):
@@ -57,7 +53,6 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# --- MIDDLEWARE JWT (Ziua 4) ---
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,27 +60,22 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # Decodăm token-ul cu aceeași cheie
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except JWTError:
-        # Prindem excepțiile de token expirat/invalid
         raise credentials_exception
         
-    # Încărcăm userul din DB
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
         raise credentials_exception
     return user
 
-# --- SCHEME ---
 class RegisterRequest(BaseModel):
     email: str
     password: str
 
-# --- RUTE ZIUA 3 ---
 @app.get("/")
 def read_root():
     return {"status": "ok", "mesaj": "Backend funcțional"}
@@ -111,7 +101,6 @@ def register(user_req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    # Returnăm fără parolă/hash
     return {"mesaj": "Utilizator creat cu succes", "id": new_user.id, "email": new_user.email}
 
 @app.post("/auth/login")
@@ -123,16 +112,10 @@ def login(user_req: RegisterRequest, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- RUTE ZIUA 4 ---
 @app.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
-    # Returnează datele userului curent, fără parolă/hash
-    return {
-        "id": current_user.id, 
-        "email": current_user.email
-    }
+    return {"id": current_user.id, "email": current_user.email}
 
 @app.post("/auth/logout")
 def logout():
-    # Răspunde cu succes. Invalidarea reală se face pe frontend.
-    return {"mesaj": "Logout efectuat cu succes. Stergeti token-ul din localStorage pe frontend."}
+    return {"mesaj": "Logout efectuat cu succes. Frontend-ul trebuie sa stearga token-ul din localStorage."}
