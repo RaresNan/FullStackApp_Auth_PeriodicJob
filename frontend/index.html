@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Aplicație Fullstack Auth</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 50px; display: flex; justify-content: center; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        .secondary { background: #6c757d; margin-top: 10px; }
+        .secondary:hover { background: #5a6268; }
+        .error { color: red; font-size: 14px; margin-bottom: 10px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <!-- SECȚIUNEA DE LOGIN -->
+    <div id="login-view">
+        <h2>Autentificare</h2>
+        <div id="login-error" class="error"></div>
+        <input type="email" id="login-email" placeholder="Email">
+        <input type="password" id="login-password" placeholder="Parolă">
+        <button onclick="login()">Intră în cont</button>
+        <button class="secondary" onclick="showRegister()">Nu ai cont? Înregistrează-te</button>
+    </div>
+
+    <!-- SECȚIUNEA DE REGISTER -->
+    <div id="register-view" class="hidden">
+        <h2>Înregistrare</h2>
+        <div id="reg-error" class="error"></div>
+        <input type="email" id="reg-email" placeholder="Email">
+        <input type="password" id="reg-password" placeholder="Parolă">
+        <button onclick="register()">Creează cont</button>
+        <button class="secondary" onclick="showLogin()">Ai deja cont? Autentificare</button>
+    </div>
+
+    <!-- SECȚIUNEA PROTEJATĂ (DASHBOARD) -->
+    <div id="dashboard-view" class="hidden">
+        <h2>Panou Protejat</h2>
+        <p>Bun venit! Datele tale preluate de pe server prin rute protejate:</p>
+        <div id="user-info" style="background: #e9ecef; padding: 10px; border-radius: 4px; margin-bottom: 15px;"></div>
+        <button onclick="logout()" style="background: #dc3545;">Logout</button>
+    </div>
+</div>
+
+<script>
+    // Schimbă cu IP-ul tău de pe AWS sau http://localhost:8000 dacă testezi local
+    const API_URL = "http://<IP-UL-TAU-AWS>:8000"; 
+
+    function showRegister() {
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('register-view').classList.remove('hidden');
+    }
+
+    function showLogin() {
+        document.getElementById('register-view').classList.add('hidden');
+        document.getElementById('login-view').classList.remove('hidden');
+    }
+
+    async function register() {
+        const email = document.getElementById('reg-email').value;
+        const password = document.getElementById('reg-password').value;
+        const errDiv = document.getElementById('reg-error');
+        
+        try {
+            const res = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Eroare la înregistrare");
+            
+            alert("Cont creat cu succes! Te poți autentifica.");
+            showLogin();
+        } catch (err) {
+            errDiv.innerText = err.message;
+        }
+    }
+
+    async function login() {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const errDiv = document.getElementById('login-error');
+
+        try {
+            // Trimitem datele ca form-data conform cerinței OAuth2 /auth/login
+            const formData = new URLSearchParams();
+            formData.append('username', email);
+            formData.append('password', password);
+
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Email sau parolă greșită");
+
+            // Salvăm tokenul în localStorage
+            localStorage.setItem('access_token', data.access_token);
+            loadDashboard();
+        } catch (err) {
+            errDiv.innerText = err.message;
+        }
+    }
+
+    async function loadDashboard() {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            showLogin();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/me`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) throw new Error("Sesiune expirată");
+
+            const user = await res.json();
+            document.getElementById('user-info').innerHTML = `<b>ID:</b> ${user.id}<br><b>Email:</b> ${user.email}`;
+            
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('register-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.remove('hidden');
+        } catch (err) {
+            logout();
+        }
+    }
+
+    function logout() {
+        // Șterge tokenul din localStorage
+        localStorage.removeItem('access_token');
+        document.getElementById('dashboard-view').classList.add('hidden');
+        showLogin();
+    }
+
+    // La încărcarea paginii, verificăm dacă userul era deja logat (persistență la refresh)
+    window.onload = function() {
+        if (localStorage.getItem('access_token')) {
+            loadDashboard();
+        }
+    };
+</script>
+
+</body>
+</html>
