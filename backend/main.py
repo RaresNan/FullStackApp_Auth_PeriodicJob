@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, text
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
@@ -103,10 +103,12 @@ def register(user_req: RegisterRequest, db: Session = Depends(get_db)):
     
     return {"mesaj": "Utilizator creat cu succes", "id": new_user.id, "email": new_user.email}
 
+# AICI ESTE MODIFICAREA: Folosim OAuth2PasswordRequestForm
 @app.post("/auth/login")
-def login(user_req: RegisterRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_req.email).first()
-    if not user or not verify_password(user_req.password, user.hashed_password):
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Swagger trimite email-ul in campul 'username' implicit
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email sau parola gresita")
         
     access_token = create_access_token(data={"sub": str(user.id)})
