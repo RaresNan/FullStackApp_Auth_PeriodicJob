@@ -64,4 +64,10 @@ def run_job():
         db.close() 
 
 if __name__ == "__main__":
-    run_job()
+    print("[*] Asteptam 5 secunde pentru initializarea bazei de date...")
+    time.sleep(5)
+    
+    while True:
+        run_job()
+        print("[*] Scheduler: Asteptam 60 secunde pana la urmatoarea rulare...\n")
+        time.sleep(60)
