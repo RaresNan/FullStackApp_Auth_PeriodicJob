@@ -24,6 +24,9 @@ class JobRun(Base):
     status = Column(String)
     message = Column(String)
 
+# Creăm tabela automat dacă nu există în baza de date
+Base.metadata.create_all(bind=engine)
+
 def run_job():
     db = SessionLocal()
     
@@ -36,10 +39,7 @@ def run_job():
     print(f"[*] Job #{job_record.id} a pornit la {now}")
 
     try:
-        # --- ADAUGAT PENTRU ZIUA 7: SIMULĂM O EROARE ---
-        raise Exception("Eroare simulata pentru testul din Ziua 7!")
-        
-        # Simulăm acțiunea normală (care nu se va mai executa din cauza erorii de sus)
+        # Simulăm acțiunea normală cu succes
         time.sleep(2)
         random_number = random.randint(1, 100)
         
