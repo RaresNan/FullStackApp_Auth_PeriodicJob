@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, text
+from sqlalchemy import create_engine, Column, Integer, String, text, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from pydantic import BaseModel
 from passlib.context import CryptContext
@@ -28,6 +28,16 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+
+# --- ADAUGAT PENTRU ZIUA 6: Tabela pentru Job-uri ---
+class JobRun(Base):
+    __tablename__ = "job_runs"
+    id = Column(Integer, primary_key=True, index=True)
+    started_at = Column(DateTime)
+    finished_at = Column(DateTime, nullable=True)
+    status = Column(String)
+    message = Column(String)
+# ----------------------------------------------------
 
 Base.metadata.create_all(bind=engine)
 
