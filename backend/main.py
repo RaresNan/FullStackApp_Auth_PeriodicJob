@@ -29,7 +29,6 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-# --- ADAUGAT PENTRU ZIUA 6: Tabela pentru Job-uri ---
 class JobRun(Base):
     __tablename__ = "job_runs"
     id = Column(Integer, primary_key=True, index=True)
@@ -37,7 +36,6 @@ class JobRun(Base):
     finished_at = Column(DateTime, nullable=True)
     status = Column(String)
     message = Column(String)
-# ----------------------------------------------------
 
 Base.metadata.create_all(bind=engine)
 
@@ -96,7 +94,6 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
 
-# RUTA MODIFICATĂ: Acum livrează interfața HTML direct în browser
 @app.get("/")
 def read_root():
     return FileResponse("frontend/index.html")
@@ -140,3 +137,20 @@ def get_me(current_user: User = Depends(get_current_user)):
 @app.post("/auth/logout")
 def logout():
     return {"mesaj": "Logout efectuat cu succes. Frontend-ul trebuie sa stearga token-ul din localStorage."}
+
+# --- ADAUGAT PENTRU ZIUA 7: Ruta protejata pentru a vedea statusul job-urilor ---
+@app.get("/admin/job-status")
+def get_job_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Interogăm ultimele 10 rânduri, sortate descrescător după started_at
+    jobs = db.query(JobRun).order_by(JobRun.started_at.desc()).limit(10).all()
+    
+    return [
+        {
+            "id": job.id,
+            "started_at": job.started_at,
+            "finished_at": job.finished_at,
+            "status": job.status,
+            "message": job.message
+        }
+        for job in jobs
+    ]

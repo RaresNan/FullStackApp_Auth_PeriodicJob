@@ -27,7 +27,6 @@ class JobRun(Base):
 def run_job():
     db = SessionLocal()
     
-    # Salvăm momentul de START (folosim timezone.utc ca să nu mai primim avertismente)
     now = datetime.now(timezone.utc)
     job_record = JobRun(started_at=now, status="running", message="Job started...")
     db.add(job_record)
@@ -37,7 +36,10 @@ def run_job():
     print(f"[*] Job #{job_record.id} a pornit la {now}")
 
     try:
-        # Simulăm acțiunea
+        # --- ADAUGAT PENTRU ZIUA 7: SIMULĂM O EROARE ---
+        raise Exception("Eroare simulata pentru testul din Ziua 7!")
+        
+        # Simulăm acțiunea normală (care nu se va mai executa din cauza erorii de sus)
         time.sleep(2)
         random_number = random.randint(1, 100)
         
@@ -57,10 +59,9 @@ def run_job():
         job_record.finished_at = datetime.now(timezone.utc)
         db.commit()
         
-        # PRINT-ul este acum ÎNAINTE de a închide conexiunea
         print(f"[*] Job #{job_record.id} s-a terminat și a închis conexiunea la DB.\n")
         
-        db.close() # Închidem ușa la final de tot
+        db.close() 
 
 if __name__ == "__main__":
     run_job()
