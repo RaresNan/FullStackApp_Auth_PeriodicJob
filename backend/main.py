@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, text, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
@@ -94,9 +94,15 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def read_root():
-    return FileResponse("frontend/index.html")
+    # Caută index.html fie local, fie în directorul părinte/frontend
+    paths = ["index.html", "frontend/index.html", "../index.html"]
+    for path in paths:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    return "<html><body><h3>Frontend index.html nu a fost găsit pe server!</h3></body></html>"
 
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
@@ -136,14 +142,11 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @app.post("/auth/logout")
 def logout():
-    return {"mesaj": "Logout efectuat cu succes. Frontend-ul trebuie sa stearga token-ul din localStorage."}
+    return {"mesaj": "Logout efectuat cu succes."}
 
-# --- ADAUGAT PENTRU ZIUA 7: Ruta protejata pentru a vedea statusul job-urilor ---
 @app.get("/admin/job-status")
 def get_job_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Interogăm ultimele 10 rânduri, sortate descrescător după started_at
     jobs = db.query(JobRun).order_by(JobRun.started_at.desc()).limit(10).all()
-    
     return [
         {
             "id": job.id,
